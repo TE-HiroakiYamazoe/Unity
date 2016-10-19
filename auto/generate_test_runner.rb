@@ -91,6 +91,15 @@ class UnityTestRunnerGenerator
     end
   end
 
+  def find_test_for_no_macro_case(macros, name, call)
+    tests_and_line_numbers = []
+    if macros.empty?
+      test_args = nil
+      tests_and_line_numbers << { :type => nil, :test => name, :args => test_args, :call => call, :line_number => 0 }
+    end
+    return tests_and_line_numbers
+  end
+
   def find_test_for_normal_case(macros, name, call)
     tests_and_line_numbers = []
     if !macros.empty?
@@ -137,17 +146,18 @@ class UnityTestRunnerGenerator
     lines = source_scrubbed.split(/(^\s*\#.*$)                 # Treat preprocessor directives as a logical line
                               | (;|\{|\}) /x)                  # Match ;, {, and } as end of lines
 
-    if @options[:use_param_tests]
-	  lines.each_with_index do |line, index|
-		if line =~ /^((?:\s*TEST_[A-Z]*\s*\(.*?\)\s*)*)\s*void\s+(test.*?)\s*\(\s*(.*)\s*\)/
-		  macros = $1; name = $2; call = $3
-		  # find normal tests
-		  tests_and_line_numbers += find_test_for_normal_case(macros, name, call)
-		  # find range tests
-		  tests_and_line_numbers += find_test_for_range_case(macros, name, call)
-		end
-	  end
-	end
+    lines.each_with_index do |line, index|
+      if line =~ /^((?:\s*TEST_[A-Z]*\s*\(.*?\)\s*)*)\s*void\s+(test.*?)\s*\(\s*(.*)\s*\)/
+        macros = $1; name = $2; call = $3
+        tests_and_line_numbers += find_test_for_no_macro_case(macros, name, call)
+        if @options[:use_param_tests]
+          # find TEST_CASE
+          tests_and_line_numbers += find_test_for_normal_case(macros, name, call)
+          # find TEST_RANGE
+          tests_and_line_numbers += find_test_for_range_case(macros, name, call)
+        end
+      end
+    end
 
     #determine line numbers and create tests to run
     source_lines = source.split("\n")
